@@ -19,6 +19,7 @@ fi
 diskutil list external
 # get the last disk added
 disk=`diskutil list  external | grep external | tail -n 1 | cut -f 1 -d" " | cut -c6-`
+if [ "$disk" == "" ]; then echo "No external disks found.  Make sure there is some SD card inserted.  Try reinserting it."; exit; fi
 
 # Ask the user if they are sure we go the right disk
 while true; do
@@ -39,7 +40,9 @@ while true; do
         * ) echo "Please answer yes or no. ";;
     esac
 done
-
+echo;echo;echo;echo
+echo "**** The rest is automated, you can go get a cup of coffee.  See ya in a couple mins. ****"
+echo;echo;echo;echo
 # unmount the disk
 echo diskutil unmountDisk /dev/$disk
 diskutil unmountDisk /dev/$disk
@@ -48,11 +51,26 @@ diskutil unmountDisk /dev/$disk
 dd bs=1m if=$image of=/dev/r$disk & while pkill -INFO -x dd; do sleep 10;  echo `stat -f%z $image` total ;  done
 sync
 
+# wait for 5 seconds for the drive to come back
+counter=0
+while [ $counter -lt 5 ]; do
+    #get the mount point for the disk
+    mount=`mount | grep "^/dev/$disk" | cut -d" " -f3`
+    echo mount: $mount
+    if [ -f "$mount/config.txt" ]; then
+        counter=5
+    else
+        diskutil mount ${disk}s1
+        sleep 1
+        counter=$(( $counter + 1 ))
+    fi
+done
+
 # verify we wrote it out properly
-mount=`mount | grep "^/dev/$disk" | cut -d" " -f3`
+mount=`mount | grep "^/dev/${disk}" | cut -d" " -f3`
 echo Updating: $mount
 if [ ! -f "$mount/config.txt" ]; then
-	echo Something went wrong with the build. config.txt not found.
+	echo Something went wrong with the build. $mount/config.txt not found.
 	exit
 fi
 
@@ -67,4 +85,8 @@ if [ -f wpa_supplicant.conf ]; then
 fi
 
 #eject the drive
+echo "Ejecting $disk.  Go ahead and install in Pi now."
 diskutil eject /dev/r$disk
+
+echo "Afterward:"
+echo "ssh pi@raspberrypi.local"
