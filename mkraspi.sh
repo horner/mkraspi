@@ -1,17 +1,26 @@
 :
+if sudo -n true
+then
+  echo
+else
+  echo "sorry, this script needs suso access"
+  exit
+fi
+
 
 image=`ls -Art *.img | tail -n 1`  # get the latest image
 echo "Image: $image"
 
-if [ ! -f "$image" ]
-then
+if [ ! -f "$image" ]; then
 	echo "Go download the latest image from https://www.raspberrypi.org/downloads/raspberry-pi-os/ and place here. The file should have an .img extension"
 fi
 
 # Tell the user about disks:
 diskutil list external
+# get the last disk added
 disk=`diskutil list  external | grep external | tail -n 1 | cut -f 1 -d" " | cut -c6-`
 
+# Ask the user if they are sure we go the right disk
 while true; do
     read -p "Do you wish to install $image to /dev/$disk?  Yes or No. " yn
     case $yn in
@@ -20,6 +29,8 @@ while true; do
         * ) echo "Please answer yes or no. ";;
     esac
 done
+
+# ask them again since this could be really bad if we overwrite the wrong disk.
 while true; do
     read -p "Are you sure?  It will destroy /dev/$disk.  Yes or No. " yn
     case $yn in
@@ -29,26 +40,31 @@ while true; do
     esac
 done
 
+# unmount the disk
 echo diskutil unmountDisk /dev/$disk
 diskutil unmountDisk /dev/$disk
+
+# write out the image, every 10 seconds showing progress
 dd bs=1m if=$image of=/dev/r$disk & while pkill -INFO -x dd; do sleep 10;  echo `stat -f%z $image` total ;  done
 sync
 
+# verify we wrote it out properly
 mount=`mount | grep "^/dev/$disk" | cut -d" " -f3`
 echo Updating: $mount
-if [ ! -f "$mount/config.txt" ]
-then
+if [ ! -f "$mount/config.txt" ]; then
 	echo Something went wrong with the build. config.txt not found.
 	exit
 fi
+
+# enable ssh
 echo setting up ssh.  touch $mount/ssh
 touch $mount/ssh
 
+# add the wireless config if there
 if [ -f wpa_supplicant.conf ]; then
 	echo "Copying wpa_supplicant.conf"
 	cp wpa_supplicant.conf $mount/wpa_supplicant.conf
 fi
-exit
 
-
-sudo diskutil eject /dev/r$disk
+#eject the drive
+diskutil eject /dev/r$disk
