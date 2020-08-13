@@ -90,3 +90,7 @@ diskutil eject /dev/r$disk
 
 echo "Afterward:"
 echo "ssh pi@raspberrypi.local"
+echo "  pass: raspberry"
+echo
+echo "sudo systemctl enable ssh"
+echo "https://www.raspberrypi.org/documentation/configuration/security.md"
